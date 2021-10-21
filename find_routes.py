@@ -1,10 +1,11 @@
+import sys
 from itertools import count, combinations
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-save_animation = True
+save_animation = ("animate" in sys.argv)
 
 
 def inrange_thresh(image, color, thresh, binarize_thresh=None):
@@ -69,6 +70,14 @@ def distance_from_point(input_mask, start_point):
     return (dist_map, infinite_distance)
 
 
+def print_distance_matrix(distances):
+    station_ids = sorted({k[0] for k in distances})
+    print("B / A  | " + " ".join(f"#{x}".rjust(5) for x in station_ids))
+    for sb in station_ids:
+        formatted_ds = [str(distances.get(tuple(sorted((sa, sb))), "-")).rjust(5) for sa in station_ids]
+        print(f"#{sb}".rjust(6) + " | ", *formatted_ds)
+
+
 def main():
     image = cv2.imread("hHwyu.png", cv2.IMREAD_COLOR)
 
@@ -95,11 +104,15 @@ def main():
         distmap, inf = distance_from_point(routes_binary, start_point)
         station_infos.append((station_id, start_point, distmap, inf))
 
+    distances = {}
     for (sa_id, sa_point, sa_map, sa_inf), (sb_id, sb_point, sb_map, sb_inf) in combinations(station_infos, 2):
         distance = sa_map[sb_point[::-1]]
         if distance >= sa_inf:
             distance = np.inf
+        distances[tuple(sorted((sa_id, sb_id)))] = distance
         print(f"Distance between {sa_id} ({sa_point}) and {sb_id} ({sb_point}): {distance}")
+
+    print_distance_matrix(distances)
 
     fig, axs_grid = plt.subplots(4, len(station_positions) // 4, figsize=(15, 10))
     for subplot, (station_id, start_point, distmap, inf) in zip(axs_grid.flat, station_infos):
